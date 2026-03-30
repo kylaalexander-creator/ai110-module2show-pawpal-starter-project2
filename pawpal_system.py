@@ -17,7 +17,7 @@ class Task:
     id: uuid.UUID
     title: str
     duration_min: int
-    priority: int
+    priority: Priority
     type: str
     notes: str = ""
     scheduled_start: Optional[datetime] = None
@@ -26,7 +26,7 @@ class Task:
     def validate(self) -> bool:
         if self.duration_min <= 0:
             return False
-        if self.priority not in (1, 2, 3):
+        if not isinstance(self.priority, Priority):
             return False
         if not self.title.strip():
             return False
@@ -38,7 +38,7 @@ class Task:
         status = "scheduled" if self.scheduled_start else "pending"
         return (
             f"Task(id={self.id}, title={self.title}, duration={self.duration_min}m, "
-            f"priority={self.priority}, type={self.type}, status={status})"
+            f"priority={self.priority.name.lower()}, type={self.type}, status={status})"
         )
 
 
@@ -59,12 +59,15 @@ class Schedule:
     id: uuid.UUID
     date: date
     total_time_available: int
+    owner_id: Optional[uuid.UUID] = None
+    pet_id: Optional[uuid.UUID] = None
     tasks: List[Task] = field(default_factory=list)
+    scheduled_tasks: List[Task] = field(default_factory=list)
 
     def add_task(self, t: Task) -> bool:
         if not t.validate():
             return False
-        if self.has_overlap(t):
+        if t.scheduled_start and t.scheduled_end and self.has_overlap(t):
             return False
         if self.get_planned_duration() + t.duration_min > self.total_time_available:
             return False
@@ -75,13 +78,19 @@ class Schedule:
         for i, t in enumerate(self.tasks):
             if t.id == task_id:
                 self.tasks.pop(i)
-                return True
-        return False
+                break
+        else:
+            return False
 
-    def has_overlap(self, new_task: Task) -> bool:
+        # also remove if already scheduled
+        self.scheduled_tasks = [t for t in self.scheduled_tasks if t.id != task_id]
+        return True
+
+    def has_overlap(self, new_task: Task, in_tasks: Optional[List[Task]] = None) -> bool:
         if new_task.scheduled_start is None or new_task.scheduled_end is None:
             return False
-        for t in self.tasks:
+        container = in_tasks if in_tasks is not None else self.scheduled_tasks
+        for t in container:
             if t.scheduled_start and t.scheduled_end:
                 if (
                     new_task.scheduled_start < t.scheduled_end
@@ -94,10 +103,9 @@ class Schedule:
         return sum(task.duration_min for task in self.tasks)
 
     def generate_plan(self) -> List[Task]:
-        # simple greedy plan by priority and shortest duration
         sorted_tasks = sorted(
             self.tasks,
-            key=lambda x: (-x.priority, x.duration_min),
+            key=lambda x: (-x.priority.value, x.duration_min),
         )
 
         scheduled_tasks: List[Task] = []
@@ -107,30 +115,32 @@ class Schedule:
         for task in sorted_tasks:
             if used_minutes + task.duration_min > self.total_time_available:
                 continue
-            task.scheduled_start = current_time
-            task.scheduled_end = current_time + timedelta(minutes=task.duration_min)
-            if any(
-                (task.scheduled_start < existing.scheduled_end)
-                and (existing.scheduled_start < task.scheduled_end)
-                for existing in scheduled_tasks
-            ):
-                continue
-            scheduled_tasks.append(task)
-            current_time = task.scheduled_end
-            used_minutes += task.duration_min
+            candidate_start = current_time
+            candidate_end = current_time + timedelta(minutes=task.duration_min)
+            task.scheduled_start = candidate_start
+            task.scheduled_end = candidate_end
 
-        self.tasks = scheduled_tasks
+            if self.has_overlap(task, in_tasks=scheduled_tasks):
+                continue
+
+            scheduled_tasks.append(task)
+            used_minutes += task.duration_min
+            current_time = candidate_end
+
+        self.scheduled_tasks = scheduled_tasks
         return scheduled_tasks
 
     def explain(self) -> str:
-        if not self.tasks:
+        if not self.scheduled_tasks:
             return "No tasks scheduled."
 
         lines = [f"Schedule {self.id} on {self.date} (available {self.total_time_available}m):"]
-        for t in self.tasks:
+        for t in self.scheduled_tasks:
             start = t.scheduled_start.strftime("%H:%M") if t.scheduled_start else "?"
             end = t.scheduled_end.strftime("%H:%M") if t.scheduled_end else "?"
-            lines.append(f"- {t.title} [{t.type}] {t.duration_min}m, p={t.priority}: {start}-{end}")
+            lines.append(
+                f"- {t.title} [{t.type}] {t.duration_min}m, p={t.priority.name.lower()}: {start}-{end}"
+            )
 
         lines.append(f"Total planned duration {self.get_planned_duration()}m")
         return "\n".join(lines)
@@ -146,7 +156,8 @@ class Owner:
     schedule: Optional[Schedule] = None
 
     def add_pet(self, p: Pet) -> None:
-        self.pets.append(p)
+        if not any(existing.id == p.id for existing in self.pets):
+            self.pets.append(p)
 
     def remove_pet(self, pet_id: uuid.UUID) -> bool:
         for i, p in enumerate(self.pets):
@@ -170,10 +181,17 @@ def demo_usage() -> None:
     pet = Pet(id=uuid.uuid4(), name="Mochi", species="dog", age=3)
     owner.add_pet(pet)
 
-    schedule = Schedule(id=uuid.uuid4(), date=date.today(), total_time_available=240)
-    schedule.add_task(Task(id=uuid.uuid4(), title="Morning walk", duration_min=30, priority=3, type="walk"))
-    schedule.add_task(Task(id=uuid.uuid4(), title="Feed pet", duration_min=15, priority=2, type="feeding"))
-    schedule.add_task(Task(id=uuid.uuid4(), title="Play time", duration_min=20, priority=1, type="enrichment"))
+    schedule = Schedule(
+        id=uuid.uuid4(),
+        date=date.today(),
+        total_time_available=240,
+        owner_id=owner.id,
+        pet_id=pet.id,
+    )
+
+    schedule.add_task(Task(id=uuid.uuid4(), title="Morning walk", duration_min=30, priority=Priority.HIGH, type="walk"))
+    schedule.add_task(Task(id=uuid.uuid4(), title="Feed pet", duration_min=15, priority=Priority.MEDIUM, type="feeding"))
+    schedule.add_task(Task(id=uuid.uuid4(), title="Play time", duration_min=20, priority=Priority.LOW, type="enrichment"))
 
     schedule.generate_plan()
     owner.set_schedule(schedule)

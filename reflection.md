@@ -15,7 +15,7 @@
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
----yes, i decided to have owner as a parent class and 
+---yes, I fixed the lack of a backlink between the schedule to owner. I let it fix these changes so that there was no issue with tracking tasks according to which owner/pet.
 
 ## 2. Scheduling Logic and Tradeoffs
 
