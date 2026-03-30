@@ -22,8 +22,10 @@ class Task:
     notes: str = ""
     scheduled_start: Optional[datetime] = None
     scheduled_end: Optional[datetime] = None
+    completed: bool = False
 
     def validate(self) -> bool:
+        """Return True if task data is valid."""
         if self.duration_min <= 0:
             return False
         if not isinstance(self.priority, Priority):
@@ -34,8 +36,18 @@ class Task:
             return False
         return True
 
+    def mark_complete(self) -> None:
+        """Mark the task as completed."""
+        self.completed = True
+
     def info(self) -> str:
-        status = "scheduled" if self.scheduled_start else "pending"
+        """Return a human-readable task summary."""
+        if self.completed:
+            status = "completed"
+        elif self.scheduled_start:
+            status = "scheduled"
+        else:
+            status = "pending"
         return (
             f"Task(id={self.id}, title={self.title}, duration={self.duration_min}m, "
             f"priority={self.priority.name.lower()}, type={self.type}, status={status})"
@@ -49,9 +61,20 @@ class Pet:
     species: str
     age: int
     needs: List[str] = field(default_factory=list)
+    tasks: List[Task] = field(default_factory=list)
 
     def update_needs(self, needs: List[str]) -> None:
+        """Replace the pet's need list."""
         self.needs = needs
+
+    def add_task(self, task: Task) -> None:
+        """Assign a valid task to the pet."""
+        if task.validate():
+            self.tasks.append(task)
+
+    def get_tasks(self) -> List[Task]:
+        """Return tasks assigned to this pet."""
+        return self.tasks
 
 
 @dataclass
@@ -65,6 +88,7 @@ class Schedule:
     scheduled_tasks: List[Task] = field(default_factory=list)
 
     def add_task(self, t: Task) -> bool:
+        """Add a task if valid and within available time."""
         if not t.validate():
             return False
         if t.scheduled_start and t.scheduled_end and self.has_overlap(t):
@@ -75,6 +99,7 @@ class Schedule:
         return True
 
     def remove_task(self, task_id: uuid.UUID) -> bool:
+        """Remove a task from the schedule by ID."""
         for i, t in enumerate(self.tasks):
             if t.id == task_id:
                 self.tasks.pop(i)
@@ -87,6 +112,7 @@ class Schedule:
         return True
 
     def has_overlap(self, new_task: Task, in_tasks: Optional[List[Task]] = None) -> bool:
+        """Check whether a task overlaps with existing scheduled tasks."""
         if new_task.scheduled_start is None or new_task.scheduled_end is None:
             return False
         container = in_tasks if in_tasks is not None else self.scheduled_tasks
@@ -100,9 +126,11 @@ class Schedule:
         return False
 
     def get_planned_duration(self) -> int:
+        """Return the total duration of planned tasks."""
         return sum(task.duration_min for task in self.tasks)
 
     def generate_plan(self) -> List[Task]:
+        """Schedule tasks in priority order up to available time."""
         sorted_tasks = sorted(
             self.tasks,
             key=lambda x: (-x.priority.value, x.duration_min),
@@ -131,6 +159,7 @@ class Schedule:
         return scheduled_tasks
 
     def explain(self) -> str:
+        """Return a human-readable description of the schedule."""
         if not self.scheduled_tasks:
             return "No tasks scheduled."
 
@@ -156,10 +185,12 @@ class Owner:
     schedule: Optional[Schedule] = None
 
     def add_pet(self, p: Pet) -> None:
+        """Add a pet to the owner's list if it isn't already present."""
         if not any(existing.id == p.id for existing in self.pets):
             self.pets.append(p)
 
     def remove_pet(self, pet_id: uuid.UUID) -> bool:
+        """Remove a pet by its ID, returning whether removal succeeded."""
         for i, p in enumerate(self.pets):
             if p.id == pet_id:
                 del self.pets[i]
@@ -167,12 +198,15 @@ class Owner:
         return False
 
     def get_pets(self) -> List[Pet]:
+        """Return the owner's pet list."""
         return self.pets
 
     def set_schedule(self, s: Schedule) -> None:
+        """Set the owner's schedule."""
         self.schedule = s
 
     def get_schedule(self) -> Optional[Schedule]:
+        """Get the owner's schedule, if any."""
         return self.schedule
 
 
