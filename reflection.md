@@ -5,7 +5,10 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+
 - What classes did you include, and what responsibilities did you assign to each?
+
+1. Theres needs to be a class for the pet, and a derived class for the owner. there should be a scheduler as parent class, that can add a time, duration, check for time overlap/availability, etc. The derived class can the task, and derived classes of task are the different type of classes. Such as walks, medicine, grooming, feeding. Each responsible for tracking what each task needs, the normal duration for each task etc.
 
 **b. Design changes**
 
