@@ -15,7 +15,7 @@
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
 
----
+---yes, i decided to have owner as a parent class and 
 
 ## 2. Scheduling Logic and Tradeoffs
 
