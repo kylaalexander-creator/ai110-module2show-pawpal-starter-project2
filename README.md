@@ -2,6 +2,16 @@
 
 You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
 
+# Smarter Scheduling
+
+- Multi-pet task planner
+- Priority-aware daily schedule generation
+- Recurring tasks: daily/weekly auto-refresh
+- Conflict detection and warnings
+- Sorting/filtering by time/pet/status
+- Streamlit front-end & command-line demo
+- Unit tests for core scheduling logic
+
 ## Scenario
 
 A busy pet owner needs help staying consistent with pet care. They want an assistant that can:

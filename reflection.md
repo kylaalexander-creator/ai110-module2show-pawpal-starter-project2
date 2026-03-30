@@ -23,12 +23,12 @@
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
-
+priority and time. I decided priorty was most important because these are the tasks that typically can not be missed. 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
-
+ it favors high priority tasks over other tasks, but this can lead to low priority tasks being put off. This is reasonable so the high priority tasks are never put off. 
 ---
 
 ## 3. AI Collaboration
