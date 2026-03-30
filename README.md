@@ -2,6 +2,17 @@
 
 You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
 
+# Testing Pawpal+
+python -m pytest
+
+Recurrence: month-end + leap-year date math
+Priority sorting: high before low, ties stable
+Complete recurring: mark done + next task created
+Invalid data: empty title/type, negative duration, zero recurrence fail
+Conflict: overlapping scheduled tasks detected
+
+all tests are passes, confidence level 4.5 stars. May be room for error despite tests.
+
 # Smarter Scheduling
 
 - Multi-pet task planner

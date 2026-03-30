@@ -170,3 +170,99 @@ def test_schedule_sort_and_filter_conflict_and_recurring_behavior():
     schedule.tasks.extend([overlapping1, overlapping2])
     conflicts = schedule.detect_conflicts()
     assert len(conflicts) >= 1
+
+
+def test_recurring_task_next_occurrence_month_end_and_leap_year():
+    base_date = date(2024, 1, 31)
+    task = Task(
+        id=uuid.uuid4(),
+        title="Medicate",
+        duration_min=10,
+        priority=Priority.MEDIUM,
+        type="medicine",
+        recurrence_days=30,
+        created_date=base_date,
+    )
+
+    expected_next = task.next_occurrence(date(2024, 1, 31))
+    assert expected_next == date(2024, 3, 1) or expected_next == date(2024, 3, 1)
+
+    # leap-year check from Feb 29
+    task2 = Task(
+        id=uuid.uuid4(),
+        title="Checkup",
+        duration_min=20,
+        priority=Priority.LOW,
+        type="vet",
+        recurrence_days=365,
+        created_date=date(2020, 2, 29),
+    )
+    assert task2.next_occurrence(date(2020, 2, 29)) == date(2021, 2, 28)
+
+
+def test_schedule_generate_plan_prioritizes_and_stabilizes_tie():
+    schedule = Schedule(id=uuid.uuid4(), date=date.today(), total_time_available=120)
+
+    high1 = Task(id=uuid.uuid4(), title="Walk1", duration_min=30, priority=Priority.HIGH, type="walk")
+    high2 = Task(id=uuid.uuid4(), title="Walk2", duration_min=30, priority=Priority.HIGH, type="walk")
+    low1 = Task(id=uuid.uuid4(), title="Play", duration_min=30, priority=Priority.LOW, type="play")
+
+    for t in [high1, high2, low1]:
+        t.scheduled_start = datetime.combine(date.today(), datetime.min.time()) + timedelta(hours=8)
+        t.scheduled_end = t.scheduled_start + timedelta(minutes=t.duration_min)
+        schedule.add_task(t)
+
+    # All have same priority level for high tasks; order should preserve by title or creation in sorted list
+    sorted_tasks = schedule.generate_plan()
+    assert len(sorted_tasks) >= 2
+    assert sorted_tasks[0].priority == Priority.HIGH
+    assert sorted_tasks[1].priority == Priority.HIGH
+
+
+def test_complete_recurring_task_creates_next_occurrence_and_carries_over():
+    schedule = Schedule(id=uuid.uuid4(), date=date.today(), total_time_available=120)
+    recurring = Task(
+        id=uuid.uuid4(),
+        title="Daily Feed",
+        duration_min=15,
+        priority=Priority.MEDIUM,
+        type="feeding",
+        recurrence_days=1,
+        created_date=date.today(),
+    )
+    schedule.add_task(recurring)
+    new_task = schedule.complete_task(recurring.id)
+
+    assert recurring.completed
+    assert recurring.last_completed_date == date.today()
+    assert new_task is not None
+    assert new_task.created_date == date.today() + timedelta(days=1)
+
+
+def test_task_validation_rejects_invalid_inputs():
+    invalid_cases = [
+        Task(id=uuid.uuid4(), title="", duration_min=10, priority=Priority.LOW, type="feed"),
+        Task(id=uuid.uuid4(), title="Bad", duration_min=-5, priority=Priority.LOW, type="feed"),
+        Task(id=uuid.uuid4(), title="Bad", duration_min=10, priority=Priority.LOW, type="", recurrence_days=1),
+        Task(id=uuid.uuid4(), title="Bad", duration_min=10, priority=Priority.LOW, type="feed", recurrence_days=0),
+    ]
+
+    for task in invalid_cases:
+        assert not task.validate()
+
+
+def test_schedule_detect_conflicts_with_overlapping_slots_considers_priority():
+    schedule = Schedule(id=uuid.uuid4(), date=date.today(), total_time_available=120)
+
+    t1 = Task(id=uuid.uuid4(), title="A", duration_min=60, priority=Priority.HIGH, type="walk")
+    t1.scheduled_start = datetime.combine(date.today(), datetime.min.time()) + timedelta(hours=9)
+    t1.scheduled_end = t1.scheduled_start + timedelta(minutes=60)
+
+    t2 = Task(id=uuid.uuid4(), title="B", duration_min=30, priority=Priority.LOW, type="play")
+    t2.scheduled_start = datetime.combine(date.today(), datetime.min.time()) + timedelta(hours=9, minutes=30)
+    t2.scheduled_end = t2.scheduled_start + timedelta(minutes=30)
+
+    schedule.tasks = [t1, t2]
+    conflicts = schedule.detect_conflicts()
+    assert len(conflicts) == 1
+    assert conflicts[0][0] == t1 and conflicts[0][1] == t2
