@@ -2,14 +2,25 @@
 
 You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
 
+## Implemented Features
+- Sorting by priority and scheduled time
+- Conflict detection + warning messages
+- Recurring tasks with next-occurrence logic
+- Complete recurring task carryover
+- Input validation for tasks (title, type, duration, recurrence)
+- Schedule filters (status/type)
+- Streamlit display and UX with `st.table`, `st.success`, `st.warning`, and `st.info`
+
 # Testing Pawpal+
 python -m pytest
 
-Recurrence: month-end + leap-year date math
-Priority sorting: high before low, ties stable
-Complete recurring: mark done + next task created
-Invalid data: empty title/type, negative duration, zero recurrence fail
-Conflict: overlapping scheduled tasks detected
+## Implemented features (testing checklist)
+- Recurrence: month-end + leap-year next-occurrence math
+- Priority sorting: high before low, stable tie path
+- Complete recurring tasks: mark done + create next occurrence
+- Validation: reject empty title/type, negative duration, zero recurrence
+- Conflict detection: overlapping scheduled tasks flagged
+- Schedule derived outcomes: planned duration, percent of availability
 
 all tests are passes, confidence level 4.5 stars. May be room for error despite tests.
 
@@ -44,6 +55,11 @@ Your final app should:
 - Include tests for the most important scheduling behaviors
 
 ## Getting started
+
+### DEMO
+![screenshot of app](image.png)
+
+ <a href="/course_images/ai110/app sc.png" target="_blank"><img src='/course_images/ai110/app sc.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>.
 
 ### Setup
 

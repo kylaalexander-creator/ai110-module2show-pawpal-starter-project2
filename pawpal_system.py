@@ -171,6 +171,8 @@ class Schedule:
     total_time_available: int
     owner_id: Optional[uuid.UUID] = None
     pet_id: Optional[uuid.UUID] = None
+    day_start_hour: int = 8
+    day_start_minute: int = 0
     tasks: List[Task] = field(default_factory=list)
     scheduled_tasks: List[Task] = field(default_factory=list)
 
@@ -300,7 +302,8 @@ class Schedule:
         )
 
         scheduled_tasks: List[Task] = []
-        current_time = datetime.combine(self.date, datetime.min.time())
+        from datetime import time as dtime
+        current_time = datetime.combine(self.date, dtime(hour=self.day_start_hour, minute=self.day_start_minute))
         used_minutes = 0
 
         for task in sorted_tasks:
